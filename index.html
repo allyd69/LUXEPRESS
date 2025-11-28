@@ -1,0 +1,1655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LuxePress | Premium Self-Publishing Studio</title>
+    <meta name="description" content="Create stunning ebooks with AI-powered covers and professional formatting">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        gold: {
+                            50: '#FBF8F1',
+                            100: '#F7EED8',
+                            200: '#F0DDB0',
+                            300: '#E8C97E',
+                            400: '#D4AF37',
+                            500: '#C9A227',
+                            600: '#A3801D',
+                            700: '#7D6118',
+                            800: '#584414',
+                            900: '#3A2C0D',
+                        }
+                    },
+                    fontFamily: {
+                        'serif': ['Playfair Display', 'Georgia', 'serif'],
+                        'body': ['Cormorant Garamond', 'Georgia', 'serif'],
+                        'sans': ['Inter', 'system-ui', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@300;400;500;600&family=Montserrat:wght@300;400;500;600&family=Lora:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+    
+    <!-- Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Lucide Icons (inline for reliability) -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Cormorant Garamond', Georgia, serif; }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #1a1a1f; }
+        ::-webkit-scrollbar-thumb { background: #D4AF37; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #E8C97E; }
+        
+        /* Animations */
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+        
+        .animate-fadeIn { animation: fadeIn 0.4s ease-out; }
+        .animate-slideIn { animation: slideIn 0.3s ease-out; }
+        .animate-pulse { animation: pulse 2s infinite; }
+        .animate-spin { animation: spin 1s linear infinite; }
+        .animate-float { animation: float 3s ease-in-out infinite; }
+        
+        /* Toast animations */
+        .toast-enter { animation: slideIn 0.3s ease-out; }
+        
+        /* Range slider styling */
+        input[type="range"] {
+            -webkit-appearance: none;
+            background: transparent;
+            width: 100%;
+        }
+        input[type="range"]::-webkit-slider-runnable-track {
+            height: 4px;
+            background: #374151;
+            border-radius: 2px;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: #D4AF37;
+            border-radius: 50%;
+            margin-top: -6px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+        
+        /* Focus states */
+        input:focus, textarea:focus, button:focus { outline: none; }
+        input:focus-visible, textarea:focus-visible { 
+            ring: 2px;
+            ring-color: #D4AF37;
+            ring-offset: 2px;
+        }
+        
+        /* Print styles for PDF */
+        @media print {
+            body { background: white !important; }
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen">
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        const { useState, useCallback, useRef, useEffect, useMemo } = React;
+
+        // ============================================================
+        // ICON COMPONENTS (Using Lucide-style SVGs)
+        // ============================================================
+        const Icons = {
+            Upload: () => (
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+            ),
+            Image: () => (
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+                </svg>
+            ),
+            Sparkles: () => (
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/>
+                </svg>
+            ),
+            Download: () => (
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+            ),
+            FileText: () => (
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/>
+                </svg>
+            ),
+            Book: () => (
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                </svg>
+            ),
+            Eye: () => (
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>
+                </svg>
+            ),
+            Settings: () => (
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>
+                </svg>
+            ),
+            Check: () => (
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12"/>
+                </svg>
+            ),
+            X: () => (
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            ),
+            ChevronDown: () => (
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="6 9 12 15 18 9"/>
+                </svg>
+            ),
+            ChevronUp: () => (
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="18 15 12 9 6 15"/>
+                </svg>
+            ),
+            Palette: () => (
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.555C21.965 6.012 17.461 2 12 2z"/>
+                </svg>
+            ),
+            Loader: () => (
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-spin">
+                    <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+                </svg>
+            ),
+            AlertCircle: () => (
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+            ),
+            Layers: () => (
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>
+                </svg>
+            ),
+            Type: () => (
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/>
+                </svg>
+            ),
+        };
+
+        // ============================================================
+        // MAIN APPLICATION COMPONENT
+        // ============================================================
+        const LuxePress = () => {
+            // ==================== CENTRAL STATE ====================
+            const [state, setState] = useState({
+                bookTitle: '',
+                authorName: '',
+                coverImage: null,
+                coverSettings: {
+                    opacity: 100,
+                    overlayDarkness: 40,
+                },
+                manuscriptText: '',
+                selectedTemplate: 'classic',
+                chapterList: [],
+                wordCount: 0,
+            });
+
+            // UI State
+            const [activeSection, setActiveSection] = useState('details');
+            const [previewMode, setPreviewMode] = useState('cover');
+            const [isGenerating, setIsGenerating] = useState(false);
+            const [isExporting, setIsExporting] = useState(false);
+            const [exportType, setExportType] = useState(null);
+            const [coverStyle, setCoverStyle] = useState('cinematic');
+            const [coverPrompt, setCoverPrompt] = useState('');
+            const [coverHistory, setCoverHistory] = useState([]);
+            const [toasts, setToasts] = useState([]);
+            const [sidebarOpen, setSidebarOpen] = useState(true);
+
+            // Refs
+            const fileInputRef = useRef(null);
+            const imageInputRef = useRef(null);
+            const coverPreviewRef = useRef(null);
+            const interiorPreviewRef = useRef(null);
+
+            // ==================== TEMPLATES ====================
+            const templates = useMemo(() => ({
+                classic: {
+                    id: 'classic',
+                    name: 'Classic Serif',
+                    description: 'Timeless elegance with traditional typography',
+                    coverBg: 'linear-gradient(145deg, #1a1a2e 0%, #16213e 100%)',
+                    accentColor: '#D4AF37',
+                    pageBg: '#FAF8F5',
+                    pageText: '#2A2A2A',
+                    fontFamily: "'Playfair Display', Georgia, serif",
+                    bodyFont: "'Cormorant Garamond', Georgia, serif",
+                    chapterStyle: 'centered',
+                },
+                modern: {
+                    id: 'modern',
+                    name: 'Modern Sans',
+                    description: 'Clean and contemporary minimalism',
+                    coverBg: 'linear-gradient(145deg, #0f0f0f 0%, #1a1a1a 100%)',
+                    accentColor: '#FFFFFF',
+                    pageBg: '#FFFFFF',
+                    pageText: '#1a1a1a',
+                    fontFamily: "'Montserrat', 'Inter', sans-serif",
+                    bodyFont: "'Inter', system-ui, sans-serif",
+                    chapterStyle: 'left',
+                },
+                avantgarde: {
+                    id: 'avantgarde',
+                    name: 'Avant-Garde',
+                    description: 'Bold and artistic expression',
+                    coverBg: 'linear-gradient(135deg, #2D1B4E 0%, #1a0f2e 50%, #0D0D0D 100%)',
+                    accentColor: '#E056FD',
+                    pageBg: '#FAFAFA',
+                    pageText: '#2D1B4E',
+                    fontFamily: "'Lora', Georgia, serif",
+                    bodyFont: "'Lora', Georgia, serif",
+                    chapterStyle: 'dramatic',
+                },
+            }), []);
+
+            const currentTemplate = templates[state.selectedTemplate];
+
+            // ==================== COVER STYLES ====================
+            const coverStyles = [
+                { id: 'cinematic', name: 'Cinematic', icon: '🎬', keywords: 'dramatic,cinematic,movie' },
+                { id: 'fantasy', name: 'Fantasy', icon: '✨', keywords: 'fantasy,magical,mystical' },
+                { id: 'minimalist', name: 'Minimalist', icon: '◻️', keywords: 'minimal,simple,clean' },
+                { id: 'romance', name: 'Romance', icon: '💕', keywords: 'romantic,love,couple' },
+                { id: 'thriller', name: 'Thriller', icon: '🔪', keywords: 'dark,mystery,suspense' },
+                { id: 'nature', name: 'Nature', icon: '🌿', keywords: 'nature,landscape,outdoor' },
+            ];
+
+            // ==================== TOAST SYSTEM ====================
+            const showToast = useCallback((message, type = 'success') => {
+                const id = Date.now();
+                setToasts(prev => [...prev, { id, message, type }]);
+                setTimeout(() => {
+                    setToasts(prev => prev.filter(t => t.id !== id));
+                }, 4000);
+            }, []);
+
+            // ==================== UPDATE STATE HELPER ====================
+            const updateState = useCallback((updates) => {
+                setState(prev => ({ ...prev, ...updates }));
+            }, []);
+
+            const updateCoverSettings = useCallback((updates) => {
+                setState(prev => ({
+                    ...prev,
+                    coverSettings: { ...prev.coverSettings, ...updates }
+                }));
+            }, []);
+
+            // ==================== MANUSCRIPT PROCESSING ====================
+            const processManuscript = useCallback((text) => {
+                if (!text || typeof text !== 'string') {
+                    updateState({ manuscriptText: '', chapterList: [], wordCount: 0 });
+                    return;
+                }
+
+                // Calculate word count
+                const words = text.trim().split(/\s+/).filter(w => w.length > 0);
+                const wordCount = words.length;
+
+                // Detect chapters
+                const lines = text.split('\n');
+                const chapters = [];
+                let currentChapter = null;
+                let currentContent = '';
+                let currentWordCount = 0;
+
+                lines.forEach((line, index) => {
+                    const trimmed = line.trim();
+                    const isChapterHeading = 
+                        /^(Chapter|CHAPTER|Part|PART)\s+(\d+|[IVXLC]+)/i.test(trimmed) ||
+                        /^#{1,2}\s+/.test(trimmed) ||
+                        (index > 0 && lines[index - 1].trim() === '' && lines[index + 1]?.trim() === '' && trimmed.length > 0 && trimmed.length < 100);
+
+                    if (isChapterHeading && trimmed.length > 0) {
+                        if (currentChapter) {
+                            currentChapter.content = currentContent.trim();
+                            currentChapter.wordCount = currentWordCount;
+                            chapters.push(currentChapter);
+                        }
+                        currentChapter = {
+                            id: chapters.length + 1,
+                            title: trimmed.replace(/^#+\s*/, ''),
+                            content: '',
+                            wordCount: 0
+                        };
+                        currentContent = '';
+                        currentWordCount = 0;
+                    } else {
+                        currentContent += line + '\n';
+                        currentWordCount += line.split(/\s+/).filter(w => w.length > 0).length;
+                    }
+                });
+
+                // Add last chapter
+                if (currentChapter) {
+                    currentChapter.content = currentContent.trim();
+                    currentChapter.wordCount = currentWordCount;
+                    chapters.push(currentChapter);
+                }
+
+                // If no chapters detected, create one
+                if (chapters.length === 0 && text.trim()) {
+                    chapters.push({
+                        id: 1,
+                        title: 'Full Document',
+                        content: text,
+                        wordCount: wordCount
+                    });
+                }
+
+                updateState({
+                    manuscriptText: text,
+                    chapterList: chapters,
+                    wordCount: wordCount
+                });
+            }, [updateState]);
+
+            // ==================== FILE HANDLERS ====================
+            const handleManuscriptUpload = useCallback((e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+
+                const validTypes = ['.txt', '.md', 'text/plain', 'text/markdown'];
+                const isValid = validTypes.some(type => 
+                    file.name.endsWith(type) || file.type === type
+                );
+
+                if (!isValid) {
+                    showToast('Please upload a .txt or .md file', 'error');
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const text = event.target?.result;
+                    if (typeof text === 'string') {
+                        processManuscript(text);
+                        showToast(`Manuscript uploaded: ${file.name}`, 'success');
+                    }
+                };
+                reader.onerror = () => {
+                    showToast('Error reading file', 'error');
+                };
+                reader.readAsText(file);
+            }, [processManuscript, showToast]);
+
+            const handleImageUpload = useCallback((e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+
+                if (!file.type.startsWith('image/')) {
+                    showToast('Please upload an image file', 'error');
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const url = event.target?.result;
+                    if (typeof url === 'string') {
+                        updateState({ coverImage: url });
+                        setCoverHistory(prev => [{ url, timestamp: Date.now() }, ...prev].slice(0, 5));
+                        showToast('Cover image uploaded', 'success');
+                    }
+                };
+                reader.onerror = () => {
+                    showToast('Error reading image', 'error');
+                };
+                reader.readAsDataURL(file);
+            }, [updateState, showToast]);
+
+            // ==================== AI COVER SIMULATION ====================
+            const generateAICover = useCallback(async () => {
+                if (!coverPrompt.trim()) {
+                    showToast('Please enter a description for your cover', 'error');
+                    return;
+                }
+
+                setIsGenerating(true);
+
+                try {
+                    // Simulate AI processing time
+                    await new Promise(resolve => setTimeout(resolve, 2000 + Math.random() * 1500));
+
+                    // Generate a unique seed from the prompt and style
+                    const style = coverStyles.find(s => s.id === coverStyle);
+                    const seed = `${coverPrompt}-${coverStyle}-${Date.now()}`.split('')
+                        .reduce((acc, char) => acc + char.charCodeAt(0), 0);
+
+                    // Fetch from Picsum with seed for consistency
+                    const imageUrl = `https://picsum.photos/seed/${seed}/600/900`;
+
+                    updateState({ coverImage: imageUrl });
+                    setCoverHistory(prev => [
+                        { url: imageUrl, timestamp: Date.now(), prompt: coverPrompt, style: coverStyle },
+                        ...prev
+                    ].slice(0, 5));
+
+                    showToast('AI cover generated successfully!', 'success');
+                } catch (error) {
+                    showToast('Error generating cover. Please try again.', 'error');
+                } finally {
+                    setIsGenerating(false);
+                }
+            }, [coverPrompt, coverStyle, updateState, showToast]);
+
+            // ==================== EXPORT FUNCTIONS ====================
+            
+            // Export as PDF
+            const exportPDF = useCallback(async () => {
+                if (!state.manuscriptText && !state.bookTitle) {
+                    showToast('Please add content before exporting', 'error');
+                    return;
+                }
+
+                setIsExporting(true);
+                setExportType('pdf');
+
+                try {
+                    const { jsPDF } = window.jspdf;
+                    const pdf = new jsPDF({
+                        orientation: 'portrait',
+                        unit: 'mm',
+                        format: 'a5'
+                    });
+
+                    const pageWidth = pdf.internal.pageSize.getWidth();
+                    const pageHeight = pdf.internal.pageSize.getHeight();
+                    const margin = 15;
+                    const contentWidth = pageWidth - (margin * 2);
+
+                    const title = state.bookTitle || 'Untitled';
+                    const author = state.authorName || 'Unknown Author';
+                    const template = currentTemplate;
+
+                    // Helper for hex to RGB
+                    const hexToRgb = (hex) => {
+                        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+                        return result ? {
+                            r: parseInt(result[1], 16),
+                            g: parseInt(result[2], 16),
+                            b: parseInt(result[3], 16)
+                        } : { r: 0, g: 0, b: 0 };
+                    };
+
+                    const accent = hexToRgb(template.accentColor);
+                    const textColor = hexToRgb(template.pageText);
+
+                    // === COVER PAGE ===
+                    pdf.setFillColor(26, 26, 46);
+                    pdf.rect(0, 0, pageWidth, pageHeight, 'F');
+
+                    // Accent bar
+                    pdf.setFillColor(accent.r, accent.g, accent.b);
+                    pdf.rect(0, 0, pageWidth, 5, 'F');
+
+                    // Title
+                    pdf.setTextColor(255, 255, 255);
+                    pdf.setFontSize(24);
+                    pdf.setFont('helvetica', 'bold');
+                    const titleLines = pdf.splitTextToSize(title, contentWidth);
+                    pdf.text(titleLines, pageWidth / 2, pageHeight * 0.4, { align: 'center' });
+
+                    // Divider
+                    pdf.setDrawColor(accent.r, accent.g, accent.b);
+                    pdf.setLineWidth(0.5);
+                    pdf.line(pageWidth * 0.25, pageHeight * 0.5, pageWidth * 0.75, pageHeight * 0.5);
+
+                    // Author
+                    pdf.setFontSize(14);
+                    pdf.setFont('helvetica', 'normal');
+                    pdf.text(author, pageWidth / 2, pageHeight * 0.58, { align: 'center' });
+
+                    // Template badge
+                    pdf.setFontSize(8);
+                    pdf.setTextColor(150, 150, 150);
+                    pdf.text(`${template.name} Edition`, pageWidth / 2, pageHeight * 0.88, { align: 'center' });
+
+                    // === TITLE PAGE ===
+                    pdf.addPage();
+                    pdf.setFillColor(250, 248, 245);
+                    pdf.rect(0, 0, pageWidth, pageHeight, 'F');
+
+                    pdf.setTextColor(textColor.r, textColor.g, textColor.b);
+                    pdf.setFontSize(20);
+                    pdf.setFont('helvetica', 'bold');
+                    pdf.text(title, pageWidth / 2, pageHeight * 0.4, { align: 'center' });
+
+                    pdf.setFontSize(12);
+                    pdf.setFont('helvetica', 'italic');
+                    pdf.text('by', pageWidth / 2, pageHeight * 0.47, { align: 'center' });
+
+                    pdf.setFontSize(16);
+                    pdf.setFont('helvetica', 'normal');
+                    pdf.text(author, pageWidth / 2, pageHeight * 0.54, { align: 'center' });
+
+                    // === CONTENT ===
+                    const content = state.manuscriptText || 'No content provided.';
+                    const paragraphs = content.split(/\n\n+/).filter(p => p.trim());
+
+                    pdf.addPage();
+                    pdf.setFillColor(250, 248, 245);
+                    pdf.rect(0, 0, pageWidth, pageHeight, 'F');
+
+                    let currentY = margin + 10;
+                    let pageNum = 1;
+
+                    paragraphs.forEach((para) => {
+                        const trimmed = para.trim();
+                        const isChapter = /^(Chapter|CHAPTER|Part|PART)\s/i.test(trimmed) || /^#/.test(trimmed);
+
+                        if (isChapter) {
+                            if (currentY > margin + 30) {
+                                pdf.setFontSize(9);
+                                pdf.setTextColor(150, 150, 150);
+                                pdf.text(String(pageNum), pageWidth / 2, pageHeight - 10, { align: 'center' });
+                                pageNum++;
+
+                                pdf.addPage();
+                                pdf.setFillColor(250, 248, 245);
+                                pdf.rect(0, 0, pageWidth, pageHeight, 'F');
+                                currentY = margin + 10;
+                            }
+
+                            pdf.setFontSize(16);
+                            pdf.setFont('helvetica', 'bold');
+                            pdf.setTextColor(accent.r, accent.g, accent.b);
+                            pdf.text(trimmed.replace(/^#+\s*/, ''), pageWidth / 2, currentY, { align: 'center' });
+                            currentY += 15;
+                        } else {
+                            pdf.setFontSize(11);
+                            pdf.setFont('helvetica', 'normal');
+                            pdf.setTextColor(textColor.r, textColor.g, textColor.b);
+
+                            const lines = pdf.splitTextToSize(trimmed, contentWidth);
+
+                            for (const line of lines) {
+                                if (currentY > pageHeight - margin - 15) {
+                                    pdf.setFontSize(9);
+                                    pdf.setTextColor(150, 150, 150);
+                                    pdf.text(String(pageNum), pageWidth / 2, pageHeight - 10, { align: 'center' });
+                                    pageNum++;
+
+                                    pdf.addPage();
+                                    pdf.setFillColor(250, 248, 245);
+                                    pdf.rect(0, 0, pageWidth, pageHeight, 'F');
+                                    currentY = margin + 10;
+
+                                    pdf.setFontSize(11);
+                                    pdf.setTextColor(textColor.r, textColor.g, textColor.b);
+                                }
+
+                                pdf.text(line, margin, currentY);
+                                currentY += 5.5;
+                            }
+                            currentY += 3;
+                        }
+                    });
+
+                    // Final page number
+                    pdf.setFontSize(9);
+                    pdf.setTextColor(150, 150, 150);
+                    pdf.text(String(pageNum), pageWidth / 2, pageHeight - 10, { align: 'center' });
+
+                    // Save
+                    const filename = `${title.replace(/[^a-z0-9]/gi, '_')}_LuxePress.pdf`;
+                    pdf.save(filename);
+                    showToast('PDF exported successfully!', 'success');
+
+                } catch (error) {
+                    console.error('PDF Export Error:', error);
+                    showToast('Error exporting PDF. Please try again.', 'error');
+                } finally {
+                    setIsExporting(false);
+                    setExportType(null);
+                }
+            }, [state, currentTemplate, showToast]);
+
+            // Export as HTML
+            const exportHTML = useCallback(async () => {
+                if (!state.manuscriptText && !state.bookTitle) {
+                    showToast('Please add content before exporting', 'error');
+                    return;
+                }
+
+                setIsExporting(true);
+                setExportType('html');
+
+                try {
+                    const title = state.bookTitle || 'Untitled';
+                    const author = state.authorName || 'Unknown Author';
+                    const content = state.manuscriptText || 'No content provided.';
+                    const template = currentTemplate;
+
+                    // Convert paragraphs to HTML
+                    const paragraphs = content.split(/\n\n+/).filter(p => p.trim());
+                    let htmlContent = '';
+
+                    paragraphs.forEach((para, idx) => {
+                        const trimmed = para.trim();
+                        if (/^(Chapter|CHAPTER|Part|PART)\s/i.test(trimmed) || /^#/.test(trimmed)) {
+                            htmlContent += `<h2 class="chapter-heading">${trimmed.replace(/^#+\s*/, '')}</h2>\n`;
+                        } else {
+                            const isFirstAfterChapter = idx === 0 || 
+                                /^(Chapter|CHAPTER|Part|PART)\s/i.test(paragraphs[idx - 1]?.trim() || '') ||
+                                /^#/.test(paragraphs[idx - 1]?.trim() || '');
+                            
+                            if (isFirstAfterChapter) {
+                                const first = trimmed.charAt(0);
+                                const rest = trimmed.slice(1);
+                                htmlContent += `<p class="first-para"><span class="drop-cap">${first}</span>${rest}</p>\n`;
+                            } else {
+                                htmlContent += `<p>${trimmed}</p>\n`;
+                            }
+                        }
+                    });
+
+                    const fullHTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${title} by ${author}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: ${template.bodyFont};
+            font-size: 18px;
+            line-height: 1.8;
+            color: ${template.pageText};
+            background: ${template.pageBg};
+            max-width: 700px;
+            margin: 0 auto;
+            padding: 40px 30px;
+        }
+        
+        .cover {
+            text-align: center;
+            padding: 100px 30px;
+            background: ${template.coverBg};
+            color: white;
+            margin: -40px -30px 60px;
+            border-top: 6px solid ${template.accentColor};
+        }
+        
+        .cover h1 {
+            font-family: ${template.fontFamily};
+            font-size: 2.5em;
+            margin-bottom: 30px;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+        }
+        
+        .cover .divider {
+            width: 120px;
+            height: 2px;
+            background: ${template.accentColor};
+            margin: 30px auto;
+        }
+        
+        .cover .author {
+            font-size: 1.3em;
+            opacity: 0.9;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+        
+        .cover .template-badge {
+            font-size: 0.8em;
+            opacity: 0.5;
+            margin-top: 60px;
+            letter-spacing: 0.15em;
+        }
+        
+        .title-page {
+            text-align: center;
+            padding: 80px 30px;
+            page-break-after: always;
+            border-bottom: 1px solid #ddd;
+            margin-bottom: 60px;
+        }
+        
+        .title-page h1 {
+            font-family: ${template.fontFamily};
+            font-size: 2.2em;
+            color: ${template.pageText};
+            margin-bottom: 30px;
+        }
+        
+        .title-page .author {
+            font-size: 1.4em;
+            color: #666;
+        }
+        
+        .content {
+            margin-top: 40px;
+        }
+        
+        .chapter-heading {
+            font-family: ${template.fontFamily};
+            font-size: 1.6em;
+            color: ${template.accentColor};
+            text-align: center;
+            margin: 60px 0 40px;
+            letter-spacing: 0.05em;
+        }
+        
+        p {
+            text-align: justify;
+            text-indent: 1.5em;
+            margin: 1em 0;
+        }
+        
+        .first-para {
+            text-indent: 0;
+        }
+        
+        .drop-cap {
+            float: left;
+            font-family: ${template.fontFamily};
+            font-size: 4em;
+            line-height: 0.8;
+            padding-right: 0.1em;
+            color: ${template.accentColor};
+        }
+        
+        .end-mark {
+            text-align: center;
+            margin-top: 80px;
+            padding-top: 40px;
+            border-top: 1px solid #ddd;
+            color: ${template.accentColor};
+            font-size: 1.5em;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 60px;
+            color: #999;
+            font-size: 0.85em;
+        }
+        
+        @media print {
+            body { padding: 0; max-width: none; }
+            .cover { page-break-after: always; margin: 0; padding: 40vh 30px; }
+            .title-page { padding: 40vh 30px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="cover">
+        <h1>${title}</h1>
+        <div class="divider"></div>
+        <p class="author">${author}</p>
+        <p class="template-badge">${template.name} Edition</p>
+    </div>
+    
+    <div class="title-page">
+        <h1>${title}</h1>
+        <p style="margin: 15px 0; font-style: italic;">by</p>
+        <p class="author">${author}</p>
+    </div>
+    
+    <div class="content">
+        ${htmlContent}
+    </div>
+    
+    <div class="end-mark">❧</div>
+    
+    <div class="footer">
+        Created with LuxePress • ${template.name} Template
+    </div>
+</body>
+</html>`;
+
+                    // Download
+                    const blob = new Blob([fullHTML], { type: 'text/html;charset=utf-8' });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `${title.replace(/[^a-z0-9]/gi, '_')}_LuxePress.html`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+
+                    showToast('HTML eBook exported successfully!', 'success');
+
+                } catch (error) {
+                    console.error('HTML Export Error:', error);
+                    showToast('Error exporting HTML. Please try again.', 'error');
+                } finally {
+                    setIsExporting(false);
+                    setExportType(null);
+                }
+            }, [state, currentTemplate, showToast]);
+
+            // Export as TXT
+            const exportTXT = useCallback(() => {
+                if (!state.manuscriptText && !state.bookTitle) {
+                    showToast('Please add content before exporting', 'error');
+                    return;
+                }
+
+                setIsExporting(true);
+                setExportType('txt');
+
+                try {
+                    const title = state.bookTitle || 'Untitled';
+                    const author = state.authorName || 'Unknown Author';
+                    const content = state.manuscriptText || 'No content provided.';
+
+                    const fullText = `${title.toUpperCase()}
+by ${author}
+
+${'═'.repeat(50)}
+
+${content}
+
+${'═'.repeat(50)}
+Created with LuxePress`;
+
+                    const blob = new Blob([fullText], { type: 'text/plain;charset=utf-8' });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `${title.replace(/[^a-z0-9]/gi, '_')}.txt`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+
+                    showToast('Text file exported successfully!', 'success');
+
+                } catch (error) {
+                    console.error('TXT Export Error:', error);
+                    showToast('Error exporting text file.', 'error');
+                } finally {
+                    setIsExporting(false);
+                    setExportType(null);
+                }
+            }, [state, showToast]);
+
+            // Export Cover as PNG
+            const exportCoverPNG = useCallback(async () => {
+                if (!coverPreviewRef.current) {
+                    showToast('Cover preview not available', 'error');
+                    return;
+                }
+
+                setIsExporting(true);
+                setExportType('cover');
+
+                try {
+                    const canvas = await html2canvas(coverPreviewRef.current, {
+                        scale: 2,
+                        useCORS: true,
+                        allowTaint: true,
+                        backgroundColor: '#1a1a2e',
+                    });
+
+                    const link = document.createElement('a');
+                    link.download = `${(state.bookTitle || 'cover').replace(/[^a-z0-9]/gi, '_')}_cover.png`;
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+
+                    showToast('Cover image exported successfully!', 'success');
+
+                } catch (error) {
+                    console.error('Cover Export Error:', error);
+                    showToast('Error exporting cover. Please try again.', 'error');
+                } finally {
+                    setIsExporting(false);
+                    setExportType(null);
+                }
+            }, [state.bookTitle, showToast]);
+
+            // ==================== ACCORDION SECTION COMPONENT ====================
+            const AccordionSection = ({ id, title, icon: Icon, children }) => {
+                const isOpen = activeSection === id;
+                
+                return (
+                    <div className="border-b border-slate-800/50">
+                        <button
+                            onClick={() => setActiveSection(isOpen ? null : id)}
+                            className={`w-full flex items-center justify-between p-4 text-left transition-all duration-200 ${
+                                isOpen ? 'bg-slate-800/30 text-gold-400' : 'hover:bg-slate-800/20 text-slate-300'
+                            }`}
+                        >
+                            <div className="flex items-center gap-3">
+                                <Icon />
+                                <span className="font-medium text-sm tracking-wide uppercase">{title}</span>
+                            </div>
+                            <div className={`transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}>
+                                <Icons.ChevronDown />
+                            </div>
+                        </button>
+                        
+                        <div className={`overflow-hidden transition-all duration-300 ${
+                            isOpen ? 'max-h-[800px] opacity-100' : 'max-h-0 opacity-0'
+                        }`}>
+                            <div className="p-4 pt-2 space-y-4 animate-fadeIn">
+                                {children}
+                            </div>
+                        </div>
+                    </div>
+                );
+            };
+
+            // ==================== BOOK COVER PREVIEW COMPONENT ====================
+            const BookCoverPreview = React.forwardRef(({ size = 'large' }, ref) => {
+                const template = currentTemplate;
+                const isLarge = size === 'large';
+                const width = isLarge ? 280 : 160;
+                const height = isLarge ? 420 : 240;
+
+                return (
+                    <div
+                        ref={ref}
+                        className="relative overflow-hidden flex-shrink-0 shadow-2xl"
+                        style={{
+                            width: `${width}px`,
+                            height: `${height}px`,
+                            background: template.coverBg,
+                            borderRadius: '4px',
+                        }}
+                    >
+                        {/* Cover Image */}
+                        {state.coverImage && (
+                            <img
+                                src={state.coverImage}
+                                alt="Cover"
+                                crossOrigin="anonymous"
+                                className="absolute inset-0 w-full h-full object-cover"
+                                style={{ opacity: state.coverSettings.opacity / 100 }}
+                            />
+                        )}
+
+                        {/* Accent Bar */}
+                        <div
+                            className="absolute top-0 left-0 right-0 h-1.5"
+                            style={{ background: template.accentColor }}
+                        />
+
+                        {/* Text Overlay */}
+                        <div
+                            className="absolute inset-0 flex flex-col justify-between p-4 md:p-6"
+                            style={{
+                                background: state.coverImage
+                                    ? `linear-gradient(180deg, rgba(0,0,0,${state.coverSettings.overlayDarkness / 100}) 0%, transparent 40%, transparent 60%, rgba(0,0,0,${state.coverSettings.overlayDarkness / 100 + 0.2}) 100%)`
+                                    : 'transparent'
+                            }}
+                        >
+                            {(state.coverImage || state.bookTitle) ? (
+                                <>
+                                    <div className="text-center mt-4 md:mt-8">
+                                        <div
+                                            className="text-xs tracking-widest uppercase mb-2 md:mb-3"
+                                            style={{
+                                                color: template.accentColor,
+                                                textShadow: '0 2px 8px rgba(0,0,0,0.8)',
+                                                fontSize: isLarge ? '10px' : '8px'
+                                            }}
+                                        >
+                                            {template.name}
+                                        </div>
+                                        <h3
+                                            className="text-white font-medium leading-tight"
+                                            style={{
+                                                fontFamily: template.fontFamily,
+                                                fontSize: isLarge ? '22px' : '14px',
+                                                textShadow: '0 2px 15px rgba(0,0,0,0.9)',
+                                            }}
+                                        >
+                                            {state.bookTitle || 'Your Title'}
+                                        </h3>
+                                    </div>
+
+                                    <div className="text-center">
+                                        <div
+                                            className="w-10 h-px mx-auto mb-2 md:mb-3"
+                                            style={{ background: template.accentColor }}
+                                        />
+                                        <p
+                                            className="text-gray-200 uppercase tracking-wider"
+                                            style={{
+                                                fontSize: isLarge ? '12px' : '9px',
+                                                textShadow: '0 2px 8px rgba(0,0,0,0.8)',
+                                            }}
+                                        >
+                                            {state.authorName || 'Author Name'}
+                                        </p>
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="flex flex-col items-center justify-center h-full text-slate-500">
+                                    <div className={`mb-3 opacity-50 animate-float ${isLarge ? 'text-5xl' : 'text-3xl'}`}>
+                                        📚
+                                    </div>
+                                    <p className="text-xs uppercase tracking-wider text-center">
+                                        Add details<br />to preview
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                );
+            });
+
+            // ==================== INTERIOR PAGE PREVIEW ====================
+            const InteriorPreview = ({ size = 'large' }) => {
+                const template = currentTemplate;
+                const isLarge = size === 'large';
+                const content = state.manuscriptText || 'The morning light filtered through the ancient windows, casting long shadows across the weathered floorboards. She stood there, breath held, knowing that the next few moments would change everything.';
+                const firstPara = content.split('\n\n')[0]?.substring(0, 300) || content.substring(0, 300);
+
+                return (
+                    <div
+                        className="shadow-xl overflow-hidden"
+                        style={{
+                            width: isLarge ? '100%' : '160px',
+                            maxWidth: isLarge ? '500px' : '160px',
+                            height: isLarge ? 'auto' : '240px',
+                            minHeight: isLarge ? '300px' : 'auto',
+                            background: template.pageBg,
+                            borderRadius: '4px',
+                            fontFamily: template.bodyFont,
+                        }}
+                    >
+                        <div className={`${isLarge ? 'p-8' : 'p-3'}`}>
+                            <p
+                                className="text-center mb-4"
+                                style={{
+                                    fontSize: isLarge ? '9px' : '6px',
+                                    color: '#888'
+                                }}
+                            >
+                                12
+                            </p>
+
+                            <p
+                                className="text-justify"
+                                style={{
+                                    fontSize: isLarge ? '14px' : '8px',
+                                    lineHeight: isLarge ? '1.8' : '1.5',
+                                    color: template.pageText,
+                                }}
+                            >
+                                <span
+                                    className="float-left pr-1"
+                                    style={{
+                                        fontFamily: template.fontFamily,
+                                        fontSize: isLarge ? '48px' : '20px',
+                                        lineHeight: '0.8',
+                                        color: template.accentColor,
+                                    }}
+                                >
+                                    {firstPara.charAt(0)}
+                                </span>
+                                {isLarge ? firstPara.slice(1) : firstPara.slice(1, 100) + '...'}
+                            </p>
+
+                            {isLarge && (
+                                <div
+                                    className="text-center mt-8"
+                                    style={{ color: template.accentColor, fontSize: '16px' }}
+                                >
+                                    ❧
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                );
+            };
+
+            // ==================== RENDER ====================
+            return (
+                <div className="min-h-screen bg-slate-950 flex">
+                    {/* Toast Notifications */}
+                    <div className="fixed top-4 right-4 z-50 space-y-2">
+                        {toasts.map(toast => (
+                            <div
+                                key={toast.id}
+                                className={`toast-enter flex items-center gap-3 px-4 py-3 rounded-lg shadow-xl max-w-sm ${
+                                    toast.type === 'error'
+                                        ? 'bg-red-900/90 text-red-100 border border-red-700'
+                                        : toast.type === 'warning'
+                                        ? 'bg-amber-900/90 text-amber-100 border border-amber-700'
+                                        : 'bg-slate-800/90 text-gold-400 border border-gold-600/50'
+                                }`}
+                            >
+                                {toast.type === 'error' ? <Icons.AlertCircle /> : <Icons.Check />}
+                                <span className="text-sm font-medium">{toast.message}</span>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Export Loading Overlay */}
+                    {isExporting && (
+                        <div className="fixed inset-0 bg-slate-950/90 z-50 flex items-center justify-center">
+                            <div className="bg-slate-900 border border-gold-600/30 rounded-xl p-8 text-center shadow-2xl">
+                                <div className="w-12 h-12 border-3 border-gold-600/30 border-t-gold-400 rounded-full animate-spin mx-auto mb-4" />
+                                <p className="text-gold-400 text-sm uppercase tracking-widest">
+                                    Generating {exportType?.toUpperCase()}...
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Sidebar */}
+                    <aside className={`${sidebarOpen ? 'w-80' : 'w-0'} flex-shrink-0 bg-slate-900/50 border-r border-slate-800/50 overflow-y-auto transition-all duration-300`}>
+                        <div className={`${sidebarOpen ? 'opacity-100' : 'opacity-0'} transition-opacity duration-200`}>
+                            {/* Logo */}
+                            <div className="p-5 border-b border-slate-800/50">
+                                <h1 className="text-2xl font-serif font-semibold tracking-wide">
+                                    <span className="bg-gradient-to-r from-gold-400 via-gold-300 to-gold-400 bg-clip-text text-transparent">
+                                        LuxePress
+                                    </span>
+                                </h1>
+                                <p className="text-xs text-slate-500 mt-1 tracking-wider uppercase">
+                                    Premium Self-Publishing
+                                </p>
+                            </div>
+
+                            {/* Accordion Sections */}
+                            <div>
+                                {/* Book Details Section */}
+                                <AccordionSection id="details" title="Book Details" icon={Icons.Book}>
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="block text-xs text-slate-400 mb-2 uppercase tracking-wider">
+                                                Book Title
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={state.bookTitle}
+                                                onChange={(e) => updateState({ bookTitle: e.target.value })}
+                                                placeholder="Enter your book title..."
+                                                className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700/50 rounded-lg text-slate-100 placeholder-slate-500 focus:border-gold-500/50 focus:ring-1 focus:ring-gold-500/30 transition-all"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs text-slate-400 mb-2 uppercase tracking-wider">
+                                                Author Name
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={state.authorName}
+                                                onChange={(e) => updateState({ authorName: e.target.value })}
+                                                placeholder="Your name..."
+                                                className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700/50 rounded-lg text-slate-100 placeholder-slate-500 focus:border-gold-500/50 focus:ring-1 focus:ring-gold-500/30 transition-all"
+                                            />
+                                        </div>
+                                    </div>
+                                </AccordionSection>
+
+                                {/* Cover Designer Section */}
+                                <AccordionSection id="cover" title="Cover Designer" icon={Icons.Image}>
+                                    <div className="space-y-5">
+                                        {/* Upload */}
+                                        <div>
+                                            <label className="block text-xs text-slate-400 mb-2 uppercase tracking-wider">
+                                                Upload Image
+                                            </label>
+                                            <input
+                                                ref={imageInputRef}
+                                                type="file"
+                                                accept="image/*"
+                                                onChange={handleImageUpload}
+                                                className="hidden"
+                                            />
+                                            <button
+                                                onClick={() => imageInputRef.current?.click()}
+                                                className="w-full p-4 border-2 border-dashed border-slate-700 hover:border-gold-500/50 rounded-lg transition-all group"
+                                            >
+                                                <Icons.Upload />
+                                                <span className="block text-xs mt-2 text-slate-400 group-hover:text-gold-400">
+                                                    Click to upload
+                                                </span>
+                                            </button>
+                                        </div>
+
+                                        {/* AI Generation */}
+                                        <div className="space-y-3">
+                                            <label className="block text-xs text-slate-400 uppercase tracking-wider">
+                                                AI Cover Generator
+                                            </label>
+                                            
+                                            {/* Style Selection */}
+                                            <div className="grid grid-cols-3 gap-2">
+                                                {coverStyles.map(style => (
+                                                    <button
+                                                        key={style.id}
+                                                        onClick={() => setCoverStyle(style.id)}
+                                                        className={`p-2 rounded-lg text-center transition-all ${
+                                                            coverStyle === style.id
+                                                                ? 'bg-gold-500/20 border border-gold-500/50 text-gold-400'
+                                                                : 'bg-slate-800/30 border border-slate-700/30 text-slate-400 hover:border-slate-600'
+                                                        }`}
+                                                    >
+                                                        <div className="text-lg mb-1">{style.icon}</div>
+                                                        <div className="text-[10px]">{style.name}</div>
+                                                    </button>
+                                                ))}
+                                            </div>
+
+                                            {/* Prompt */}
+                                            <textarea
+                                                value={coverPrompt}
+                                                onChange={(e) => setCoverPrompt(e.target.value)}
+                                                placeholder="Describe your ideal cover..."
+                                                rows={2}
+                                                className="w-full px-3 py-2 bg-slate-800/50 border border-slate-700/50 rounded-lg text-slate-100 text-sm placeholder-slate-500 focus:border-gold-500/50 resize-none"
+                                            />
+
+                                            {/* Generate Button */}
+                                            <button
+                                                onClick={generateAICover}
+                                                disabled={isGenerating || !coverPrompt.trim()}
+                                                className={`w-full py-3 rounded-lg font-medium text-sm uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
+                                                    isGenerating || !coverPrompt.trim()
+                                                        ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                                                        : 'bg-gradient-to-r from-gold-500 to-gold-600 text-slate-900 hover:from-gold-400 hover:to-gold-500 shadow-lg shadow-gold-500/20'
+                                                }`}
+                                            >
+                                                {isGenerating ? (
+                                                    <>
+                                                        <Icons.Loader />
+                                                        Generating...
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Icons.Sparkles />
+                                                        Generate Cover
+                                                    </>
+                                                )}
+                                            </button>
+                                        </div>
+
+                                        {/* Cover History */}
+                                        {coverHistory.length > 0 && (
+                                            <div>
+                                                <label className="block text-xs text-slate-400 mb-2 uppercase tracking-wider">
+                                                    Recent Covers
+                                                </label>
+                                                <div className="flex gap-2 overflow-x-auto pb-2">
+                                                    {coverHistory.map((item, idx) => (
+                                                        <button
+                                                            key={idx}
+                                                            onClick={() => updateState({ coverImage: item.url })}
+                                                            className={`flex-shrink-0 w-12 h-16 rounded overflow-hidden border-2 transition-all ${
+                                                                state.coverImage === item.url
+                                                                    ? 'border-gold-500'
+                                                                    : 'border-transparent hover:border-slate-600'
+                                                            }`}
+                                                        >
+                                                            <img
+                                                                src={item.url}
+                                                                alt={`Cover ${idx + 1}`}
+                                                                className="w-full h-full object-cover"
+                                                            />
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Cover Settings */}
+                                        {state.coverImage && (
+                                            <div className="space-y-4 pt-3 border-t border-slate-700/30">
+                                                <div>
+                                                    <div className="flex justify-between text-xs mb-2">
+                                                        <span className="text-slate-400">Image Opacity</span>
+                                                        <span className="text-gold-400">{state.coverSettings.opacity}%</span>
+                                                    </div>
+                                                    <input
+                                                        type="range"
+                                                        min="0"
+                                                        max="100"
+                                                        value={state.coverSettings.opacity}
+                                                        onChange={(e) => updateCoverSettings({ opacity: Number(e.target.value) })}
+                                                        className="w-full"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <div className="flex justify-between text-xs mb-2">
+                                                        <span className="text-slate-400">Text Overlay</span>
+                                                        <span className="text-gold-400">{state.coverSettings.overlayDarkness}%</span>
+                                                    </div>
+                                                    <input
+                                                        type="range"
+                                                        min="0"
+                                                        max="100"
+                                                        value={state.coverSettings.overlayDarkness}
+                                                        onChange={(e) => updateCoverSettings({ overlayDarkness: Number(e.target.value) })}
+                                                        className="w-full"
+                                                    />
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </AccordionSection>
+
+                                {/* Content Section */}
+                                <AccordionSection id="content" title="Manuscript" icon={Icons.FileText}>
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="block text-xs text-slate-400 mb-2 uppercase tracking-wider">
+                                                Upload Manuscript
+                                            </label>
+                                            <input
+                                                ref={fileInputRef}
+                                                type="file"
+                                                accept=".txt,.md"
+                                                onChange={handleManuscriptUpload}
+                                                className="hidden"
+                                            />
+                                            <button
+                                                onClick={() => fileInputRef.current?.click()}
+                                                className="w-full p-4 border-2 border-dashed border-slate-700 hover:border-gold-500/50 rounded-lg transition-all group"
+                                            >
+                                                <Icons.Upload />
+                                                <span className="block text-xs mt-2 text-slate-400 group-hover:text-gold-400">
+                                                    Upload .txt or .md
+                                                </span>
+                                            </button>
+                                        </div>
+
+                                        {/* Stats */}
+                                        {state.wordCount > 0 && (
+                                            <div className="bg-slate-800/30 rounded-lg p-4 space-y-2">
+                                                <div className="flex justify-between text-sm">
+                                                    <span className="text-slate-400">Words</span>
+                                                    <span className="text-gold-400 font-medium">
+                                                        {state.wordCount.toLocaleString()}
+                                                    </span>
+                                                </div>
+                                                <div className="flex justify-between text-sm">
+                                                    <span className="text-slate-400">Chapters</span>
+                                                    <span className="text-gold-400 font-medium">
+                                                        {state.chapterList.length}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Chapter List */}
+                                        {state.chapterList.length > 0 && (
+                                            <div>
+                                                <label className="block text-xs text-slate-400 mb-2 uppercase tracking-wider">
+                                                    Chapters Detected
+                                                </label>
+                                                <div className="max-h-48 overflow-y-auto space-y-1">
+                                                    {state.chapterList.map((chapter) => (
+                                                        <div
+                                                            key={chapter.id}
+                                                            className="flex justify-between items-center p-2 bg-slate-800/30 rounded text-sm"
+                                                        >
+                                                            <span className="text-slate-300 truncate pr-2">
+                                                                {chapter.title}
+                                                            </span>
+                                                            <span className="text-slate-500 text-xs flex-shrink-0">
+                                                                {chapter.wordCount?.toLocaleString() || 0}
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </AccordionSection>
+
+                                {/* Templates Section */}
+                                <AccordionSection id="templates" title="Templates" icon={Icons.Palette}>
+                                    <div className="space-y-3">
+                                        {Object.values(templates).map((template) => (
+                                            <button
+                                                key={template.id}
+                                                onClick={() => updateState({ selectedTemplate: template.id })}
+                                                className={`w-full p-4 rounded-lg text-left transition-all ${
+                                                    state.selectedTemplate === template.id
+                                                        ? 'bg-gold-500/10 border-2 border-gold-500/50'
+                                                        : 'bg-slate-800/30 border-2 border-transparent hover:border-slate-700'
+                                                }`}
+                                            >
+                                                <div className="flex items-start gap-3">
+                                                    {/* Mini Preview */}
+                                                    <div className="flex gap-1 flex-shrink-0">
+                                                        <div
+                                                            className="w-6 h-9 rounded-sm"
+                                                            style={{ background: template.coverBg }}
+                                                        >
+                                                            <div
+                                                                className="h-0.5"
+                                                                style={{ background: template.accentColor }}
+                                                            />
+                                                        </div>
+                                                        <div
+                                                            className="w-6 h-9 rounded-sm p-1"
+                                                            style={{ background: template.pageBg }}
+                                                        >
+                                                            <div
+                                                                className="w-full h-0.5 rounded mb-1"
+                                                                style={{ background: template.accentColor }}
+                                                            />
+                                                            <div
+                                                                className="w-full h-0.5 rounded opacity-30"
+                                                                style={{ background: template.pageText }}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center gap-2">
+                                                            <h4 className={`font-medium ${
+                                                                state.selectedTemplate === template.id
+                                                                    ? 'text-gold-400'
+                                                                    : 'text-slate-200'
+                                                            }`}>
+                                                                {template.name}
+                                                            </h4>
+                                                            {state.selectedTemplate === template.id && (
+                                                                <Icons.Check />
+                                                            )}
+                                                        </div>
+                                                        <p className="text-xs text-slate-500 mt-1">
+                                                            {template.description}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </AccordionSection>
+
+                                {/* Export Section */}
+                                <AccordionSection id="export" title="Export" icon={Icons.Download}>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <button
+                                            onClick={exportPDF}
+                                            disabled={isExporting}
+                                            className="flex flex-col items-center gap-2 p-4 bg-gradient-to-br from-gold-500 to-gold-600 text-slate-900 rounded-lg font-medium text-sm hover:from-gold-400 hover:to-gold-500 transition-all shadow-lg shadow-gold-500/20 disabled:opacity-50"
+                                        >
+                                            <Icons.FileText />
+                                            <span>PDF</span>
+                                        </button>
+                                        <button
+                                            onClick={exportHTML}
+                                            disabled={isExporting}
+                                            className="flex flex-col items-center gap-2 p-4 bg-slate-800 text-gold-400 rounded-lg font-medium text-sm border border-gold-500/30 hover:bg-slate-700 transition-all disabled:opacity-50"
+                                        >
+                                            <Icons.Layers />
+                                            <span>HTML</span>
+                                        </button>
+                                        <button
+                                            onClick={exportCoverPNG}
+                                            disabled={isExporting || !state.coverImage}
+                                            className="flex flex-col items-center gap-2 p-4 bg-slate-800 text-gold-400 rounded-lg font-medium text-sm border border-gold-500/30 hover:bg-slate-700 transition-all disabled:opacity-50 disabled:text-slate-600"
+                                        >
+                                            <Icons.Image />
+                                            <span>Cover</span>
+                                        </button>
+                                        <button
+                                            onClick={exportTXT}
+                                            disabled={isExporting}
+                                            className="flex flex-col items-center gap-2 p-4 bg-slate-800 text-gold-400 rounded-lg font-medium text-sm border border-gold-500/30 hover:bg-slate-700 transition-all disabled:opacity-50"
+                                        >
+                                            <Icons.Type />
+                                            <span>TXT</span>
+                                        </button>
+                                    </div>
+                                </AccordionSection>
+                            </div>
+                        </div>
+                    </aside>
+
+                    {/* Main Content */}
+                    <main className="flex-1 flex flex-col overflow-hidden">
+                        {/* Header */}
+                        <header className="flex items-center justify-between px-6 py-4 border-b border-slate-800/50 bg-slate-900/30">
+                            <div className="flex items-center gap-4">
+                                <button
+                                    onClick={() => setSidebarOpen(!sidebarOpen)}
+                                    className="p-2 hover:bg-slate-800 rounded-lg transition-colors lg:hidden"
+                                >
+                                    <Icons.Settings />
+                                </button>
+                                <h2 className="text-lg font-medium text-slate-200">
+                                    Preview
+                                </h2>
+                            </div>
+
+                            {/* Preview Mode Tabs */}
+                            <div className="flex bg-slate-800/50 rounded-lg p-1">
+                                {[
+                                    { id: 'cover', label: 'Cover' },
+                                    { id: 'interior', label: 'Interior' },
+                                    { id: 'full', label: 'Full' },
+                                ].map((mode) => (
+                                    <button
+                                        key={mode.id}
+                                        onClick={() => setPreviewMode(mode.id)}
+                                        className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
+                                            previewMode === mode.id
+                                                ? 'bg-gold-500 text-slate-900'
+                                                : 'text-slate-400 hover:text-slate-200'
+                                        }`}
+                                    >
+                                        {mode.label}
+                                    </button>
+                                ))}
+                            </div>
+
+                            {/* Quick Export */}
+                            <button
+                                onClick={exportPDF}
+                                disabled={isExporting}
+                                className="hidden md:flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-gold-500 to-gold-600 text-slate-900 rounded-lg font-medium text-sm hover:from-gold-400 hover:to-gold-500 transition-all shadow-lg shadow-gold-500/20 disabled:opacity-50"
+                            >
+                                <Icons.Download />
+                                Export PDF
+                            </button>
+                        </header>
+
+                        {/* Preview Area */}
+                        <div className="flex-1 overflow-auto p-6 md:p-10 flex items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
+                            <div className="animate-fadeIn">
+                                {previewMode === 'cover' && (
+                                    <div className="flex flex-col items-center">
+                                        <BookCoverPreview ref={coverPreviewRef} size="large" />
+                                        <p className="mt-6 text-xs text-slate-500 uppercase tracking-wider">
+                                            {currentTemplate.name} Template
+                                        </p>
+                                    </div>
+                                )}
+
+                                {previewMode === 'interior' && (
+                                    <InteriorPreview size="large" />
+                                )}
+
+                                {previewMode === 'full' && (
+                                    <div className="flex items-center gap-8 flex-wrap justify-center">
+                                        <div className="text-center">
+                                            <p className="text-xs text-slate-500 uppercase tracking-wider mb-3">Cover</p>
+                                            <BookCoverPreview ref={coverPreviewRef} size="small" />
+                                        </div>
+                                        <div className="text-center">
+                                            <p className="text-xs text-slate-500 uppercase tracking-wider mb-3">Interior</p>
+                                            <InteriorPreview size="small" />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <footer className="px-6 py-3 border-t border-slate-800/50 bg-slate-900/30">
+                            <div className="flex items-center justify-between text-xs text-slate-500">
+                                <span>
+                                    {state.wordCount > 0 && `${state.wordCount.toLocaleString()} words • `}
+                                    {state.chapterList.length > 0 && `${state.chapterList.length} chapters • `}
+                                    {currentTemplate.name}
+                                </span>
+                                <span>LuxePress v1.0</span>
+                            </div>
+                        </footer>
+                    </main>
+                </div>
+            );
+        };
+
+        // ==================== RENDER APP ====================
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<LuxePress />);
+    </script>
+</body>
+</html>
